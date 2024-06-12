@@ -57,11 +57,15 @@ final class RepeatingElementEncoder implements Feature\ListAware, XmlEncoder
             /**
              * @return iterable<array-key, T>
              */
-            static function (string $xml) use ($innerIso): iterable {
-                $doc = Document::fromXmlString('<list>'.$xml.'</list>');
+            static function (string $xml) use ($context, $innerIso): iterable {
+                $doc = $context->xmlCache->read('<list>'.$xml.'</list>');
 
                 return readChildren($doc->locateDocumentElement())->map(
-                    static fn (DOMElement $element): mixed => $innerIso->from($doc->stringifyNode($element))
+                    static function (DOMElement $element) use ($innerIso, $context): mixed {
+                        $doc = $context->xmlCache->store($element);
+
+                        return $innerIso->from($doc->stringifyDocumentElement());
+                    }
                 );
             }
         );

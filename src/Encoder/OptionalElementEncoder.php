@@ -52,12 +52,12 @@ final class OptionalElementEncoder implements XmlEncoder
             /**
              * @return T|null
              */
-            static function (string $xml) use ($elementIso) : mixed {
+            static function (string $xml) use ($context, $elementIso) : mixed {
                 if ($xml === '') {
                     return null;
                 }
 
-                $documentElement = Document::fromXmlString($xml)->locateDocumentElement();
+                $documentElement = $context->xmlCache->read($xml)->locateDocumentElement();
                 if ($documentElement->getAttributeNS(Xmlns::xsi()->value(), 'nil') === 'true') {
                     return null;
                 }

@@ -3,7 +3,7 @@ declare(strict_types=1);
 
 namespace Soap\Encoding\Xml\Reader;
 
-use VeeWee\Xml\Dom\Document;
+use Soap\Encoding\Xml\Reader\Cache\XmlCache;
 use function VeeWee\Xml\Dom\Locator\Attribute\attributes_list;
 use function VeeWee\Xml\Dom\Locator\Element\children as readChildElements;
 
@@ -13,9 +13,9 @@ final class DocumentToLookupArrayReader
      * @param non-empty-string $xml
      * @return array<string, string>
      */
-    public function __invoke(string $xml): array
+    public function __invoke(string $xml, XmlCache $xmlCache): array
     {
-        $doc = Document::fromXmlString($xml);
+        $doc = $xmlCache->read($xml);
         $root = $doc->locateDocumentElement();
         $nodes = [];
 
@@ -25,7 +25,7 @@ final class DocumentToLookupArrayReader
         $elements = readChildElements($root);
         foreach ($elements as $element) {
             $key = $element->localName ?? 'unknown';
-            $nodeValue = Document::fromXmlNode($element)->stringifyDocumentElement();
+            $nodeValue = $xmlCache->stringify($element);
             // For list-nodes, a concatenated string of the xml nodes will be generated.
             $value = array_key_exists($key, $nodes) ? $nodes[$key].$nodeValue : $nodeValue;
             $nodes[$key] = $value;

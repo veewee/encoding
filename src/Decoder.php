@@ -39,6 +39,7 @@ final class Decoder implements SoapDecoder
         // The SoapResponse only contains the payload of the response (with no headers).
         // It can be parsed directly as XML.
         $parts = (new OperationReader($meta))(
+            $context,
             non_empty_string()->assert($response->getPayload())
         );
 

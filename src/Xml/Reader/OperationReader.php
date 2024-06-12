@@ -4,6 +4,7 @@ declare(strict_types=1);
 namespace Soap\Encoding\Xml\Reader;
 
 use DOMElement;
+use Soap\Encoding\Encoder\Context;
 use Soap\Engine\Metadata\Model\MethodMeta;
 use Soap\WsdlReader\Model\Definitions\BindingStyle;
 use VeeWee\Xml\Dom\Document;
@@ -24,7 +25,7 @@ final class OperationReader
      * @param non-empty-string $xml
      * @return list<string>
      */
-    public function __invoke(string $xml): array
+    public function __invoke(Context $context, string $xml): array
     {
         $operationName = $this->meta->operationName()->unwrap();
         $namespace = $this->meta->outputNamespace()->or($this->meta->targetNamespace())->unwrap();
@@ -45,7 +46,7 @@ final class OperationReader
 
         return map(
             $elements,
-            static fn (DOMElement $element): string => Document::fromXmlNode($element)->stringifyDocumentElement(),
+            static fn (DOMElement $element): string => $context->xmlCache->stringify($element),
         );
     }
 }

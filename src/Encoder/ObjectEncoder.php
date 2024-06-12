@@ -138,7 +138,7 @@ final class ObjectEncoder implements XmlEncoder
      */
     private function from(Context $context, array $properties, string $data): object
     {
-        $nodes = (new DocumentToLookupArrayReader())($data);
+        $nodes = (new DocumentToLookupArrayReader())($data, $context->xmlCache);
         /** @var Iso<TObj, array<string, mixed>> $objectData */
         $objectData = object_data($this->className);
 

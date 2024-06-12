@@ -4,6 +4,7 @@ declare(strict_types=1);
 namespace Soap\Encoding\Encoder;
 
 use Soap\Encoding\EncoderRegistry;
+use Soap\Encoding\Xml\Reader\Cache\XmlCache;
 use Soap\Engine\Metadata\Metadata;
 use Soap\Engine\Metadata\Model\XsdType;
 use Soap\WsdlReader\Model\Definitions\BindingUse;
@@ -17,6 +18,7 @@ final class Context
         public readonly EncoderRegistry $registry,
         public readonly Namespaces $namespaces,
         public readonly BindingUse $bindingUse = BindingUse::LITERAL,
+        public readonly XmlCache $xmlCache = new XmlCache()
     ) {
     }
 

@@ -44,7 +44,7 @@ final class ElementEncoder implements XmlEncoder
             static fn (string $xml): mixed => (new ElementValueReader())(
                 $context,
                 $typeEncoder,
-                Document::fromXmlString($xml)->locateDocumentElement(),
+                $context->xmlCache->read($xml)->locateDocumentElement(),
             )
         );
     }
