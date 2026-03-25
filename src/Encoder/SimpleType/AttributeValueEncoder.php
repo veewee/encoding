@@ -27,38 +27,34 @@ final class AttributeValueEncoder implements XmlEncoder
      */
     public function iso(Context $context): Iso
     {
+        $typeIso = $this->typeEncoder->iso($context);
+
         return (new Iso(
-            fn (mixed $value): ?string => $this->to($context, $value),
-            fn (?string $value): mixed => $this->from($context, $value),
+            function (mixed $value) use ($context, $typeIso): ?string {
+                $meta = $context->type->getMeta();
+                $fixed = $meta->fixed()
+                    ->map(static fn (string $fixed): mixed => $typeIso->from($fixed))
+                    ->unwrapOr(null);
+
+                if ($fixed !== null && $value !== $fixed) {
+                    throw RestrictionException::invalidFixedValue(
+                        scalar()->assert($fixed),
+                        scalar()->assert($value)
+                    );
+                }
+
+                return $value !== null ? $typeIso->to($value) : null;
+            },
+            static function (?string $value) use ($context, $typeIso): mixed {
+                if ($value !== null) {
+                    return $typeIso->from($value);
+                }
+
+                $meta = $context->type->getMeta();
+                $default = $meta->fixed()->or($meta->default())->unwrapOr(null);
+
+                return $default !== null ? $typeIso->from($default) : null;
+            },
         ));
-    }
-
-    public function to(Context $context, mixed $value): ?string
-    {
-        $meta = $context->type->getMeta();
-        $fixed = $meta->fixed()
-            ->map(fn (string $fixed): mixed => $this->typeEncoder->iso($context)->from($fixed))
-            ->unwrapOr(null);
-
-        if ($fixed !== null && $value !== $fixed) {
-            throw RestrictionException::invalidFixedValue(
-                scalar()->assert($fixed),
-                scalar()->assert($value)
-            );
-        }
-
-        return $value !== null ? $this->typeEncoder->iso($context)->to($value) : null;
-    }
-
-    public function from(Context $context, ?string $value): mixed
-    {
-        if ($value !== null) {
-            return $this->typeEncoder->iso($context)->from($value);
-        }
-
-        $meta = $context->type->getMeta();
-        $default = $meta->fixed()->or($meta->default())->unwrapOr(null);
-
-        return $default !== null ? $this->typeEncoder->iso($context)->from($default) : null;
     }
 }
