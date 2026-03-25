@@ -21,6 +21,8 @@ use function sprintf;
 
 final class XsiTypeDetector
 {
+    /** @var array<string, \Soap\Encoding\Encoder\XmlEncoder<mixed, string>> */
+    private static array $encoderCache = [];
     /**
      * @psalm-param mixed $value
      */
@@ -86,16 +88,22 @@ final class XsiTypeDetector
 
         // Enhance context to avoid duplicate optionals, repeating elements, xsi:type detections, ...
         $type = $requestedXsiType->unwrap();
-        $encoderDetectorTypeMeta = $type->getMeta()
-            ->withIsNullable(false)
-            ->withIsRepeatingElement(false);
-        $encoderDetectorContext = $context
-            ->withType($type->withMeta(static fn () => $encoderDetectorTypeMeta))
-            ->withSkipXsiTypeDetection(true);
+
+        $cacheKey = spl_object_id($context->registry) . '|' . $type->getXmlNamespace() . '|' . $type->getXmlTypeName();
+        if (!isset(self::$encoderCache[$cacheKey])) {
+            $encoderDetectorTypeMeta = $type->getMeta()
+                ->withIsNullable(false)
+                ->withIsRepeatingElement(false);
+            $encoderDetectorContext = $context
+                ->withType($type->withMeta(static fn () => $encoderDetectorTypeMeta))
+                ->withSkipXsiTypeDetection(true);
+
+            self::$encoderCache[$cacheKey] = $context->registry->detectEncoderForContext($encoderDetectorContext);
+        }
 
         return some(
             new FixedIsoEncoder(
-                $context->registry->detectEncoderForContext($encoderDetectorContext)->iso(
+                self::$encoderCache[$cacheKey]->iso(
                     $context->withType($type)
                 ),
             )
