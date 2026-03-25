@@ -14,6 +14,8 @@ use function VeeWee\Xml\Writer\Builder\value;
 
 final class ElementValueBuilder
 {
+    private readonly string|null $preEncoded;
+
     /**
      * @param XmlEncoder<mixed, string> $encoder
      * @psalm-param mixed $value
@@ -21,8 +23,10 @@ final class ElementValueBuilder
     public function __construct(
         private readonly Context $context,
         private readonly XmlEncoder $encoder,
-        private readonly mixed $value
+        private readonly mixed $value,
+        string|null $preEncoded = null,
     ) {
+        $this->preEncoded = $preEncoded;
     }
 
     /**
@@ -69,7 +73,7 @@ final class ElementValueBuilder
      */
     private function buildValue(XMLWriter $writer): Generator
     {
-        $encoded = $this->encoder->iso($this->context)->to($this->value);
+        $encoded = $this->preEncoded ?? $this->encoder->iso($this->context)->to($this->value);
 
         $builder = match (true) {
             $this->encoder instanceof Feature\CData => cdata(value($encoded)),
