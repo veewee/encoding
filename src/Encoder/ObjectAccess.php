@@ -17,6 +17,9 @@ use function VeeWee\Reflecta\Lens\property;
 
 final class ObjectAccess
 {
+    /** @var array<string, self> */
+    private static array $cache = [];
+
     /**
      * @param array<string, Property> $properties
      * @param array<string, Lens<object, mixed>> $encoderLenses
@@ -34,6 +37,12 @@ final class ObjectAccess
 
     public static function forContext(Context $context): self
     {
+        $type = $context->type;
+        $cacheKey = spl_object_id($context->registry) . '|' . $type->getXmlNamespace() . '|' . $type->getName();
+        if (isset(self::$cache[$cacheKey])) {
+            return self::$cache[$cacheKey];
+        }
+
         $type = ComplexTypeBuilder::default()($context);
 
         $sortedProperties = sort_by(
@@ -65,7 +74,7 @@ final class ObjectAccess
             $isAnyPropertyQualified = $isAnyPropertyQualified || $propertyTypeMeta->isQualified()->unwrapOr(false);
         }
 
-        return new self(
+        return self::$cache[$cacheKey] = new self(
             $normalizedProperties,
             $encoderLenses,
             $decoderLenses,
