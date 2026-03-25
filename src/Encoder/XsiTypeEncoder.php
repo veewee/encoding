@@ -25,35 +25,23 @@ final readonly class XsiTypeEncoder implements Feature\ElementAware, XmlEncoder
      */
     public function iso(Context $context): Iso
     {
+        $innerIso = $this->encoder->iso($context);
+
         return new Iso(
-            function (mixed $value) use ($context) : string {
-                return $this->to($context, $value);
-            },
-            function (string|Element $value) use ($context) : mixed {
-                return $this->from(
-                    $context,
-                    ($value instanceof Element ? $value : Element::fromString(non_empty_string()->assert($value)))
-                );
+            static fn (mixed $value): string => $innerIso->to($value),
+            function (string|Element $value) use ($context, $innerIso) : mixed {
+                $element = $value instanceof Element ? $value : Element::fromString(non_empty_string()->assert($value));
+
+                /** @var XmlEncoder<string, mixed> $encoder */
+                $encoder = match (true) {
+                    $this->encoder instanceof Feature\DisregardXsiInformation => $this->encoder,
+                    default => XsiTypeDetector::detectEncoderFromXmlElement($context, $element->element())->unwrapOr($this->encoder)
+                };
+
+                $iso = $encoder === $this->encoder ? $innerIso : $encoder->iso($context);
+
+                return $iso->from($element);
             }
         );
-    }
-
-    private function to(Context $context, mixed $value): string
-    {
-        // There is no way to know what xsi:type to use when encoding any type.
-        // The type defined in the wsdl will always be used to encode the value.
-        // If you want more control over the encoded type, please control how to encode by using the MatchingValueEncoder.
-        return $this->encoder->iso($context)->to($value);
-    }
-
-    private function from(Context $context, Element $value): mixed
-    {
-        /** @var XmlEncoder<string, mixed> $encoder */
-        $encoder = match (true) {
-            $this->encoder instanceof Feature\DisregardXsiInformation => $this->encoder,
-            default => XsiTypeDetector::detectEncoderFromXmlElement($context, $value->element())->unwrapOr($this->encoder)
-        };
-
-        return $encoder->iso($context)->from($value);
     }
 }
