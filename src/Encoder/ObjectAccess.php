@@ -3,6 +3,7 @@ declare(strict_types=1);
 
 namespace Soap\Encoding\Encoder;
 
+use Soap\Encoding\EncoderRegistry;
 use Soap\Encoding\Normalizer\PhpPropertyNameNormalizer;
 use Soap\Encoding\TypeInference\ComplexTypeBuilder;
 use Soap\Engine\Metadata\Model\Property;
@@ -10,6 +11,7 @@ use Soap\Engine\Metadata\Model\Type;
 use Soap\Engine\Metadata\Model\TypeMeta;
 use VeeWee\Reflecta\Iso\Iso;
 use VeeWee\Reflecta\Lens\Lens;
+use WeakMap;
 use function Psl\Vec\sort_by;
 use function VeeWee\Reflecta\Lens\index;
 use function VeeWee\Reflecta\Lens\optional;
@@ -17,8 +19,14 @@ use function VeeWee\Reflecta\Lens\property;
 
 final class ObjectAccess
 {
-    /** @var array<string, self> */
-    private static array $cache = [];
+    /** @var WeakMap<EncoderRegistry, array<string, self>> */
+    private static WeakMap $cache;
+
+    private static function cache(): WeakMap
+    {
+        /** @psalm-suppress RedundantPropertyInitializationCheck */
+        return self::$cache ??= new WeakMap();
+    }
 
     /**
      * @param array<string, Property> $properties
@@ -38,9 +46,11 @@ final class ObjectAccess
     public static function forContext(Context $context): self
     {
         $type = $context->type;
-        $cacheKey = spl_object_id($context->registry) . '|' . $type->getXmlNamespace() . '|' . $type->getName();
-        if (isset(self::$cache[$cacheKey])) {
-            return self::$cache[$cacheKey];
+        $cache = self::cache();
+        $registryCache = $cache[$context->registry] ?? [];
+        $cacheKey = $type->getXmlNamespace() . '|' . $type->getName();
+        if (isset($registryCache[$cacheKey])) {
+            return $registryCache[$cacheKey];
         }
 
         $type = ComplexTypeBuilder::default()($context);
@@ -74,13 +84,18 @@ final class ObjectAccess
             $isAnyPropertyQualified = $isAnyPropertyQualified || $propertyTypeMeta->isQualified()->unwrapOr(false);
         }
 
-        return self::$cache[$cacheKey] = new self(
+        $result = new self(
             $normalizedProperties,
             $encoderLenses,
             $decoderLenses,
             $isos,
             $isAnyPropertyQualified
         );
+
+        $registryCache[$cacheKey] = $result;
+        $cache[$context->registry] = $registryCache;
+
+        return $result;
     }
 
     /**

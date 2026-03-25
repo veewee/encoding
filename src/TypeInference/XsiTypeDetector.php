@@ -7,10 +7,12 @@ use DOMElement;
 use Psl\Option\Option;
 use Soap\Encoding\Encoder\Context;
 use Soap\Encoding\Encoder\FixedIsoEncoder;
+use Soap\Encoding\EncoderRegistry;
 use Soap\Engine\Metadata\Model\XsdType;
 use Soap\WsdlReader\Parser\Xml\QnameParser;
 use Soap\Xml\Xmlns as SoapXmlns;
 use VeeWee\Xml\Xmlns\Xmlns;
+use WeakMap;
 use function is_bool;
 use function is_float;
 use function is_int;
@@ -21,8 +23,14 @@ use function sprintf;
 
 final class XsiTypeDetector
 {
-    /** @var array<string, \Soap\Encoding\Encoder\XmlEncoder<mixed, string>> */
-    private static array $encoderCache = [];
+    /** @var WeakMap<EncoderRegistry, array<string, \Soap\Encoding\Encoder\XmlEncoder<mixed, string>>> */
+    private static WeakMap $encoderCache;
+
+    private static function encoderCache(): WeakMap
+    {
+        /** @psalm-suppress RedundantPropertyInitializationCheck */
+        return self::$encoderCache ??= new WeakMap();
+    }
     /**
      * @psalm-param mixed $value
      */
@@ -89,8 +97,10 @@ final class XsiTypeDetector
         // Enhance context to avoid duplicate optionals, repeating elements, xsi:type detections, ...
         $type = $requestedXsiType->unwrap();
 
-        $cacheKey = spl_object_id($context->registry) . '|' . $type->getXmlNamespace() . '|' . $type->getXmlTypeName();
-        if (!isset(self::$encoderCache[$cacheKey])) {
+        $cache = self::encoderCache();
+        $registryCache = $cache[$context->registry] ?? [];
+        $cacheKey = $type->getXmlNamespace() . '|' . $type->getXmlTypeName();
+        if (!isset($registryCache[$cacheKey])) {
             $encoderDetectorTypeMeta = $type->getMeta()
                 ->withIsNullable(false)
                 ->withIsRepeatingElement(false);
@@ -98,12 +108,13 @@ final class XsiTypeDetector
                 ->withType($type->withMeta(static fn () => $encoderDetectorTypeMeta))
                 ->withSkipXsiTypeDetection(true);
 
-            self::$encoderCache[$cacheKey] = $context->registry->detectEncoderForContext($encoderDetectorContext);
+            $registryCache[$cacheKey] = $context->registry->detectEncoderForContext($encoderDetectorContext);
+            $cache[$context->registry] = $registryCache;
         }
 
         return some(
             new FixedIsoEncoder(
-                self::$encoderCache[$cacheKey]->iso(
+                $registryCache[$cacheKey]->iso(
                     $context->withType($type)
                 ),
             )
