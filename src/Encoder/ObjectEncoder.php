@@ -29,6 +29,9 @@ use function VeeWee\Xml\Writer\Builder\value as buildValue;
  */
 final class ObjectEncoder implements Feature\ElementAware, XmlEncoder
 {
+    /** @var Iso<TObj, array<string, mixed>>|null */
+    private ?Iso $objectDataIso = null;
+
     /**
      * @param class-string<TObj> $className
      */
@@ -126,7 +129,7 @@ final class ObjectEncoder implements Feature\ElementAware, XmlEncoder
     {
         $nodes = (new DocumentToLookupArrayReader())($data);
         /** @var Iso<TObj, array<string, mixed>> $objectData */
-        $objectData = object_data($this->className);
+        $objectData = $this->objectDataIso ??= object_data($this->className);
 
         return $objectData->from(
             map_with_key(
